@@ -14,6 +14,9 @@
     "type": "git",
     "url": "https://github.com/jchip/require-at"
   },
+  "files": [
+    "require-at.js"
+  ],
   "dependencies": {},
   "devDependencies": {
     "chai": "^3.5.0",
