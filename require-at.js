@@ -7,8 +7,8 @@ const Fs = require("fs");
 /////
 
 const orig_findPath = Module._findPath;
-const contextExt = ".____context____";
-const contextFname = `____resolve____${contextExt}`;
+const contextExt = "._require_at_";
+const contextFname = `._hook_${contextExt}`;
 
 Module._findPath = function (request, paths, isMain) {
   return request.endsWith(contextFname) ? request :
