@@ -1,6 +1,6 @@
 {
   "name": "require-at",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "main": "require-at.js",
   "description": "Call require pretending your are at another directory",
   "scripts": {
