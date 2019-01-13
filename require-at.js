@@ -3,59 +3,74 @@
 const Path = require("path");
 const Module = require("module");
 const Fs = require("fs");
+// use eval to avoid tripping bundlers
+const xrequire = eval("require");
 
-/////
+const createRequireFromPath =
+  Module.createRequireFromPath ||
+  ((filename, dir) => {
+    // https://github.com/nodejs/node/blob/1ae0511b942c01c6e0adff98643d350a395bf101/lib/internal/modules/cjs/loader.js#L748
+    // https://github.com/nodejs/node/blob/1ae0511b942c01c6e0adff98643d350a395bf101/lib/internal/modules/cjs/helpers.js#L16
+    const m = new Module(filename);
 
-const orig_findPath = Module._findPath;
-const contextExt = "._require_at_";
-const contextFname = `._hook_${contextExt}`;
+    m.filename = filename;
+    m.paths = Module._nodeModulePaths(dir);
 
-Module._findPath = function(request, paths, isMain) {
-  return request.endsWith(contextFname)
-    ? request
-    : orig_findPath.call(Module, request, paths, isMain);
-};
+    // don't name this require to avoid tripping bundlers
+    function _require(request) {
+      // can't use m.require because there's an internal requireDepth thing
+      // in the native Module implementation
+      return xrequire(resolve(request));
+    }
 
-Module._extensions[contextExt] = function(module, filename) {
-  module._compile("module.exports = require;", filename);
-};
+    function resolve(request, options) {
+      return Module._resolveFilename(request, m, false, options);
+    }
 
-/////
+    _require.resolve = resolve;
 
-const contextMap = new Map();
+    function paths(request) {
+      return Module._resolveLookupPaths(request, m, true);
+    }
+
+    resolve.paths = paths;
+    _require.main = process.mainModule;
+    _require.extensions = Module._extensions;
+    _require.cache = Module._cache;
+
+    return _require;
+  });
+
+const cache = new Map();
 
 function requireAt(dir, request) {
-  let xRequire;
-  dir = Path.resolve(dir);
+  const makeIt = (xdir, checked) => {
+    let xRequire = requireAt.cache && requireAt.cache.get(xdir);
 
-  let dirChecked = false;
-
-  const makeIt = () => {
-    if (!contextMap.has(dir)) {
+    if (!xRequire) {
       let stat;
       try {
-        stat = Fs.statSync(dir);
+        stat = Fs.statSync(xdir);
       } catch (e) {
-        throw new Error(`require-at: stat '${dir}' failed: ${e.message}`);
+        throw new Error(`require-at: stat '${xdir}' failed: ${e.message}`);
       }
 
-      if (!dirChecked && !stat.isDirectory()) {
-        dirChecked = true;
-        dir = Path.dirname(dir);
-        return makeIt();
+      if (!stat || !stat.isDirectory()) {
+        if (checked) throw new Error(`require-at: not a directory: '${dir}'`);
+        return makeIt(Path.dirname(xdir), true);
       }
 
-      xRequire = require(Path.join(dir, contextFname));
+      xRequire = createRequireFromPath(Path.join(xdir, "._require-at_"), xdir);
 
-      contextMap.set(dir, xRequire);
-    } else {
-      xRequire = contextMap.get(dir);
+      requireAt.cache && requireAt.cache.set(xdir, xRequire);
     }
 
     return request ? xRequire(request) : xRequire;
   };
 
-  return makeIt();
+  return makeIt(Path.resolve(dir), false);
 }
+
+requireAt.cache = cache;
 
 module.exports = requireAt;
