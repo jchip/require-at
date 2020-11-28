@@ -15,6 +15,7 @@
     "url": "https://github.com/jchip/require-at"
   },
   "files": [
+    "create-require.js",
     "require-at.js"
   ],
   "dependencies": {},
