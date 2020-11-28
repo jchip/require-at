@@ -4,6 +4,8 @@ instrumentation:
     - .js
   default-excludes: true
   include-all-sources: true
+  excludes:
+    - create-require.js
 check:
   global:
     statements: 100

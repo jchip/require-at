@@ -1,8 +1,8 @@
 language: node_js
 node_js:
-  - v6
-  - v8
   - v10
+  - v12
+  - v14
 script: fun coverage
 notifications:
   email:
